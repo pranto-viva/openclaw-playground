@@ -171,3 +171,109 @@
     animation: flow-pan 30s ease-in-out infinite;
   }
 }
+
+/* ─── json-render / artifact-viewer theme overrides ──────────────────────────── */
+/* The @json-render/shadcn package bundles its own shadcn primitives with a
+   separate Tailwind build. We inject our dark-orange CSS variables so the
+   bundled components inherit the host theme. */
+
+.artifact-viewer {
+  /* Core palette — mirrors :root vars so bundled components see them */
+  --background: oklch(0.13 0.004 255);
+  --foreground: oklch(0.92 0.008 85);
+  --card: oklch(0.2 0.008 255 / 0.58);
+  --card-foreground: oklch(0.92 0.008 85);
+  --popover: oklch(0.22 0.009 255 / 0.62);
+  --popover-foreground: oklch(0.92 0.008 85);
+  --primary: oklch(0.72 0.19 52);
+  --primary-foreground: oklch(0.12 0.004 255);
+  --secondary: oklch(0.24 0.01 255 / 0.62);
+  --secondary-foreground: oklch(0.88 0.008 85);
+  --muted: oklch(0.22 0.008 255 / 0.45);
+  --muted-foreground: oklch(0.65 0.008 85);
+  --accent: oklch(0.26 0.016 40 / 0.72);
+  --accent-foreground: oklch(0.92 0.008 85);
+  --destructive: oklch(0.64 0.22 28);
+  --border: oklch(0.34 0.01 255 / 0.42);
+  --input: oklch(0.22 0.008 255 / 0.56);
+  --ring: oklch(0.72 0.19 52 / 0.5);
+  --radius: 0.75rem;
+
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Card — glassmorphic treatment */
+.artifact-viewer [class*="rounded-xl"][class*="border"][class*="shadow"] {
+  background: oklch(0.18 0.008 255 / 0.6);
+  backdrop-filter: blur(12px);
+  border-color: oklch(0.34 0.01 255 / 0.35);
+}
+
+/* Headings */
+.artifact-viewer h1,
+.artifact-viewer h2,
+.artifact-viewer h3,
+.artifact-viewer h4 {
+  color: var(--foreground);
+}
+
+/* Badge — warm orange tint */
+.artifact-viewer [class*="inline-flex"][class*="rounded-full"],
+.artifact-viewer [class*="inline-flex"][class*="rounded-md"] {
+  --badge-bg: oklch(0.72 0.19 52 / 0.15);
+  --badge-border: oklch(0.72 0.19 52 / 0.3);
+  --badge-text: oklch(0.82 0.14 52);
+}
+
+/* Table — subtle grid lines */
+.artifact-viewer table {
+  border-collapse: collapse;
+}
+.artifact-viewer th {
+  color: var(--foreground);
+  font-weight: 600;
+  border-bottom: 1px solid oklch(0.34 0.01 255 / 0.5);
+}
+.artifact-viewer td {
+  color: var(--muted-foreground);
+  border-bottom: 1px solid oklch(0.34 0.01 255 / 0.2);
+}
+
+/* Accordion triggers — orange accent on hover */
+.artifact-viewer [data-state="open"] > button,
+.artifact-viewer button[class*="flex"][class*="w-full"] {
+  color: var(--foreground);
+}
+.artifact-viewer button[class*="flex"][class*="w-full"]:hover {
+  color: var(--primary);
+}
+
+/* Alert — subtle container */
+.artifact-viewer [role="alert"] {
+  background: oklch(0.18 0.012 255 / 0.5);
+  border-color: oklch(0.34 0.01 255 / 0.35);
+  color: var(--foreground);
+}
+
+/* Progress bar — orange fill */
+.artifact-viewer [role="progressbar"] > div {
+  background: var(--primary);
+}
+
+/* Tabs — orange active indicator */
+.artifact-viewer [role="tab"][data-state="active"] {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Separator */
+.artifact-viewer [data-orientation="horizontal"][role="separator"],
+.artifact-viewer [class*="shrink-0"][class*="bg-border"] {
+  background: oklch(0.34 0.01 255 / 0.35);
+}
+
+/* Skeleton shimmer */
+.artifact-viewer [class*="animate-pulse"] {
+  background: oklch(0.22 0.008 255 / 0.6);
+}

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "json-render-core": {
+      "source": "vercel-labs/json-render",
+      "sourceType": "github",
+      "computedHash": "8e5a55ec66896a82173ab1c84c3dc264069d4a3a2fac6e927b2a40d2fba9e323"
+    },
+    "json-render-react": {
+      "source": "vercel-labs/json-render",
+      "sourceType": "github",
+      "computedHash": "6f960b3e9d728a3ffc617e123b49f4239325137e8ad5ebdf8248b503bb308cb9"
+    }
+  }
+}

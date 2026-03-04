@@ -9,9 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.39",
+    "@ai-sdk/react": "^3.0.113",
     "@base-ui/react": "^1.2.0",
     "@hookform/resolvers": "^5.2.2",
+    "@json-render/core": "^0.11.0",
+    "@json-render/react": "^0.11.0",
+    "@json-render/shadcn": "^0.11.0",
+    "@openrouter/ai-sdk-provider": "^2.2.3",
     "add": "^2.0.6",
+    "ai": "^6.0.111",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
