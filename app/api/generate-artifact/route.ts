@@ -211,16 +211,20 @@ Begin now.`;
 
 export async function POST(req: Request) {
   try {
-    const { prompt, currentSpec } = await req.json();
+    const body = await req.json();
+    const { prompt, currentSpec, previousSpec } = body;
 
     if (!prompt || typeof prompt !== "string") {
       return Response.json({ error: "Missing prompt" }, { status: 400 });
     }
 
+    // Use previousSpec if currentSpec is not provided (for compatibility)
+    const spec = currentSpec || previousSpec;
+
     let fullPrompt = `USER_REQUEST:\n${prompt}`;
 
-    if (currentSpec?.root) {
-      fullPrompt += `\n\nCURRENT UI TREE (authoritative):\n${JSON.stringify(currentSpec, null, 2)}`;
+    if (spec?.root) {
+      fullPrompt += `\n\nCURRENT UI TREE (authoritative):\n${JSON.stringify(spec, null, 2)}`;
     }
 
     const result = streamText({

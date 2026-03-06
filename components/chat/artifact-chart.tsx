@@ -25,14 +25,14 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const FALLBACK_COLORS = [
-  "#f59e0b",
-  "#6366f1",
-  "#22c55e",
-  "#06b6d4",
-  "#ef4444",
-  "#a855f7",
-  "#14b8a6",
-  "#ec4899",
+  "#d97706", // muted orange
+  "#818cf8", // soft indigo
+  "#4ade80", // muted green
+  "#22d3ee", // soft cyan
+  "#f87171", // soft red
+  "#c084fc", // soft purple
+  "#2dd4bf", // muted teal
+  "#f472b6", // soft pink
 ];
 
 type ChartType = "bar" | "line" | "area" | "pie";

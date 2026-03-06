@@ -3,6 +3,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { registry } from "@/lib/json-render-registry";
 import type { Spec } from "@json-render/core";
 import { JSONUIProvider, Renderer } from "@json-render/react";
@@ -14,8 +17,17 @@ import {
   Loader2,
   Sparkles,
   X,
+  Send,
 } from "lucide-react";
 import * as React from "react";
+import { cn } from "@/lib/utils";
+
+interface ArtifactMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
 
 interface ArtifactViewerProps {
   spec: Spec | null;
@@ -23,6 +35,7 @@ interface ArtifactViewerProps {
   error?: Error | null;
   onClear?: () => void;
   onTest?: () => void;
+  onEditRequest?: (prompt: string, currentSpec: Spec) => void;
 }
 
 const SUPPORTED_COMPONENTS = new Set([
@@ -51,8 +64,55 @@ export default function ArtifactViewer({
   error = null,
   onClear,
   onTest,
+  onEditRequest,
 }: ArtifactViewerProps) {
   const hasSpec = spec !== null && spec.root !== "";
+  const [chatMessages, setChatMessages] = React.useState<ArtifactMessage[]>([]);
+  const [chatInput, setChatInput] = React.useState("");
+  const chatScrollRef = React.useRef<HTMLDivElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Auto-scroll chat to bottom
+  React.useEffect(() => {
+    chatScrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  const handleChatSend = () => {
+    if (!chatInput.trim() || !hasSpec || isStreaming) return;
+
+    const userMsg: ArtifactMessage = {
+      id: `artifact-user-${Date.now()}`,
+      role: "user",
+      content: chatInput.trim(),
+      timestamp: new Date(),
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+
+    // Send edit request
+    if (onEditRequest && spec) {
+      onEditRequest(chatInput.trim(), spec);
+    }
+
+    setChatInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleChatSend();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setChatInput(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 80) + "px";
+  };
 
   const unknownTypes = React.useMemo(() => {
     if (!spec) return [] as string[];
@@ -168,31 +228,119 @@ export default function ArtifactViewer({
       {error ? (
         <ErrorState error={error} />
       ) : hasSpec ? (
-        <div className="flex-1 overflow-auto p-4">
-          {unknownTypes.length > 0 && (
-            <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
-              Unknown component type(s): {unknownTypes.join(", ")}
-            </div>
-          )}
+        <>
+          <ScrollArea className="flex-1 overflow-auto p-4">
+            {unknownTypes.length > 0 && (
+              <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                Unknown component type(s): {unknownTypes.join(", ")}
+              </div>
+            )}
 
-          <div className="artifact-viewer">
-            <JSONUIProvider
-              registry={registry}
-              initialState={spec?.state ?? {}}
-            >
-              <Renderer
-                spec={spec}
+            <div className="artifact-viewer">
+              <JSONUIProvider
                 registry={registry}
-                fallback={({ element, children }) => (
-                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                    Unsupported component: {String(element?.type ?? "unknown")}
-                    {children}
-                  </div>
+                initialState={spec?.state ?? {}}
+              >
+                <Renderer
+                  spec={spec}
+                  registry={registry}
+                  fallback={({ element, children }) => (
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      Unsupported component:{" "}
+                      {String(element?.type ?? "unknown")}
+                      {children}
+                    </div>
+                  )}
+                />
+              </JSONUIProvider>
+            </div>
+
+            {/* Edit History */}
+            {chatMessages.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2 px-1">
+                  Edit History
+                </p>
+                <div className="space-y-1.5">
+                  {chatMessages.map((msg, index) => (
+                    <div
+                      key={msg.id}
+                      className="flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <span className="text-[10px] text-muted-foreground/60 font-mono mt-0.5">
+                        {index + 1}.
+                      </span>
+                      <span className="text-xs text-foreground/80 flex-1">
+                        {msg.content}
+                      </span>
+                    </div>
+                  ))}
+                  <div ref={chatScrollRef} />
+                </div>
+              </div>
+            )}
+          </ScrollArea>
+
+          {/* Chat Input */}
+          <div className="shrink-0 px-4 py-3 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <Textarea
+                ref={textareaRef}
+                value={chatInput}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Customize this artifact..."
+                rows={1}
+                disabled={isStreaming}
+                className={cn(
+                  "flex-1 min-h-8 max-h-20 resize-none text-xs rounded-lg border border-border bg-background/50 p-2",
+                  "focus-visible:ring-1 focus-visible:ring-ring",
+                  isStreaming && "opacity-50 cursor-not-allowed",
                 )}
               />
-            </JSONUIProvider>
+              <Button
+                onClick={handleChatSend}
+                disabled={!chatInput.trim() || isStreaming}
+                size="icon-sm"
+                className="shrink-0"
+              >
+                <Send className="size-3.5" />
+              </Button>
+            </div>
+
+            {/* Quick Edit Suggestions */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {[
+                "show data in pie chart",
+                "use cards layout",
+                "make it a grid",
+                "change to bar chart",
+                "add accordion sections",
+                "use line chart",
+              ].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => {
+                    setChatInput(suggestion);
+                    textareaRef.current?.focus();
+                  }}
+                  disabled={isStreaming}
+                  className={cn(
+                    "text-[10px] px-2 py-1 rounded-md border border-border/60 bg-muted/40",
+                    "hover:bg-muted hover:border-border transition-colors",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                  )}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-[10px] text-muted-foreground mt-2 px-1">
+              Chat with the artifact to customize it
+            </p>
           </div>
-        </div>
+        </>
       ) : (
         <EmptyState onTest={onTest} />
       )}

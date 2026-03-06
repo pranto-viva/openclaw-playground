@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 
 import { playgroundCatalog } from "./json-render-catalog";
+import { MarkdownRenderer } from "@/components/chat/markdown-renderer";
 
 // shadcn components
 import { Button } from "@/components/ui/button";
@@ -137,9 +138,9 @@ export const { registry, executeAction } = defineRegistry(playgroundCatalog, {
                 </h3>
               )}
               {props.description && (
-                <p className="text-sm text-muted-foreground mt-1 text-left">
-                  {props.description}
-                </p>
+                <div className="text-sm text-muted-foreground mt-1 text-left">
+                  <MarkdownRenderer content={props.description} compact />
+                </div>
               )}
             </div>
           )}
@@ -257,7 +258,9 @@ export const { registry, executeAction } = defineRegistry(playgroundCatalog, {
             {items.map((item, i) => (
               <AccordionItem key={i} value={`item-${i}`}>
                 <AccordionTrigger>{item.title}</AccordionTrigger>
-                <AccordionContent>{item.content}</AccordionContent>
+                <AccordionContent>
+                  <MarkdownRenderer content={item.content} compact />
+                </AccordionContent>
               </AccordionItem>
             ))}
           </AccordionPrimitive>
@@ -268,7 +271,9 @@ export const { registry, executeAction } = defineRegistry(playgroundCatalog, {
           {items.map((item, i) => (
             <AccordionItem key={i} value={`item-${i}`}>
               <AccordionTrigger>{item.title}</AccordionTrigger>
-              <AccordionContent>{item.content}</AccordionContent>
+              <AccordionContent>
+                <MarkdownRenderer content={item.content} compact />
+              </AccordionContent>
             </AccordionItem>
           ))}
         </AccordionPrimitive>
@@ -442,7 +447,11 @@ export const { registry, executeAction } = defineRegistry(playgroundCatalog, {
       if (props.variant === "code") {
         return <code className={`${textClass} text-left`}>{props.text}</code>;
       }
-      return <p className={`${textClass} text-left`}>{props.text}</p>;
+      return (
+        <div className={`${textClass} text-left`}>
+          <MarkdownRenderer content={props.text} compact />
+        </div>
+      );
     },
 
     Image: ({ props }) => (
@@ -531,7 +540,9 @@ export const { registry, executeAction } = defineRegistry(playgroundCatalog, {
         <Alert variant={variant} className={customClass}>
           <AlertTitle>{props.title}</AlertTitle>
           {props.message && (
-            <AlertDescription>{props.message}</AlertDescription>
+            <AlertDescription>
+              <MarkdownRenderer content={props.message} compact />
+            </AlertDescription>
           )}
         </Alert>
       );
