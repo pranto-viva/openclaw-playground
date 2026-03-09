@@ -11,6 +11,10 @@ import {
   Sparkles,
   Clock,
   Hash,
+  FileJson,
+  FileText,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,8 +30,16 @@ import { useUIStream } from "@json-render/react";
 import type { Spec } from "@json-render/core";
 import ArtifactViewer from "@/components/chat/artifact-viewer";
 import { MOCK_REPLY } from "@/app/utils/data";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Artifact {
+  type: string; // "pdf", "html", "md", "json", "csv", "png", "svg", etc.
+  filename: string; // Original filename
+  path: string; // Absolute local filesystem path
+  content?: string | null; // Inline content for text-based artifacts
+}
 
 interface MessageMetadata {
   report_id: string;
@@ -53,6 +65,7 @@ interface Message {
   usage?: MessageUsage;
   trace_id?: string;
   isError?: boolean;
+  artifacts?: Artifact[];
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -102,6 +115,101 @@ const ARTIFACT_BASE_SPEC: Spec = {
   },
 };
 
+// ─── Artifact Fragment Message ───────────────────────────────────────────────
+
+function ArtifactFragmentMessage({
+  artifact,
+  isOpen,
+  onToggle,
+}: {
+  artifact: Artifact;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const getIcon = () => {
+    switch (artifact.type) {
+      case "json":
+        return <FileJson className="size-4" />;
+      case "pdf":
+        return <FileText className="size-4" />;
+      case "html":
+        return <FileText className="size-4" />;
+      default:
+        return <FileText className="size-4" />;
+    }
+  };
+
+  const getLabel = () => {
+    switch (artifact.type) {
+      case "json":
+        return "JSON Data";
+      case "pdf":
+        return "PDF Document";
+      case "html":
+        return "HTML View";
+      default:
+        return "Artifact";
+    }
+  };
+
+  const getPreview = () => {
+    if (artifact.type === "json" && artifact.content) {
+      try {
+        const json = JSON.parse(artifact.content);
+        return (
+          <pre className="text-xs bg-muted/50 p-3 rounded-lg overflow-x-auto max-h-60">
+            <code>{JSON.stringify(json, null, 2)}</code>
+          </pre>
+        );
+      } catch {
+        return (
+          <pre className="text-xs bg-muted/50 p-3 rounded-lg overflow-x-auto max-h-60">
+            <code>{artifact.content}</code>
+          </pre>
+        );
+      }
+    }
+    return null;
+  };
+
+  return (
+    <div className="bg-card/50 border border-border/60 rounded-xl p-3 mt-2 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            {getIcon()}
+          </div>
+          <div>
+            <p className="text-sm font-medium">{getLabel()}</p>
+            <p className="text-xs text-muted-foreground">{artifact.filename}</p>
+          </div>
+        </div>
+        {(artifact.type === "pdf" || artifact.type === "html") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggle}
+            className="text-xs"
+          >
+            {isOpen ? (
+              <>
+                <EyeOff className="size-3 mr-1" />
+                Hide
+              </>
+            ) : (
+              <>
+                <Eye className="size-3 mr-1" />
+                View
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+      {artifact.type === "json" && getPreview()}
+    </div>
+  );
+}
+
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 
 function TypingIndicator() {
@@ -128,7 +236,15 @@ function TypingIndicator() {
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({
+  message,
+  onArtifactToggle,
+  openArtifact,
+}: {
+  message: Message;
+  onArtifactToggle: (artifact: Artifact) => void;
+  openArtifact: Artifact | null;
+}) {
   const isUser = message.role === "user";
 
   return (
@@ -177,9 +293,27 @@ function MessageBubble({ message }: { message: Message }) {
               </span>
             </div>
           )}
-          <p className="whitespace-pre-wrap wrap-break-word">
-            {message.content}
-          </p>
+          {isUser ? (
+            <p className="whitespace-pre-wrap wrap-break-word">
+              {message.content}
+            </p>
+          ) : (
+            <>
+              <MarkdownRenderer content={message.content} />
+              {message.artifacts && message.artifacts.length > 0 && (
+                <div className="space-y-2 mt-3">
+                  {message.artifacts.map((artifact, idx) => (
+                    <ArtifactFragmentMessage
+                      key={`${message.id}-artifact-${idx}`}
+                      artifact={artifact}
+                      isOpen={openArtifact === artifact}
+                      onToggle={() => onArtifactToggle(artifact)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Footer meta */}
@@ -274,6 +408,10 @@ export default function ChatInterface() {
   const [input, setInput] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [elapsedTime, setElapsedTime] = React.useState(0);
+  const [openArtifact, setOpenArtifact] = React.useState<Artifact | null>(null);
+  const [artifactPanelMode, setArtifactPanelMode] = React.useState<
+    "spec" | "pdf" | "html" | null
+  >(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
@@ -361,14 +499,28 @@ export default function ChatInterface() {
         metadata: data.metadata,
         usage: data.usage,
         trace_id: data.trace_id,
+        artifacts: data.artifacts,
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
 
-      // Trigger artifact generation from the reply
-      sendToArtifact(data.reply, { previousSpec: ARTIFACT_BASE_SPEC }).catch(
-        (err) => console.error("[artifact] generation failed:", err),
-      );
+      // Check if artifacts exist
+      if (data.artifacts && data.artifacts.length > 0) {
+        // Auto-open first PDF or HTML artifact
+        const firstViewable = data.artifacts.find(
+          (a: Artifact) => a.type === "pdf" || a.type === "html",
+        );
+        if (firstViewable) {
+          setOpenArtifact(firstViewable);
+          setArtifactPanelMode(firstViewable.type as "pdf" | "html");
+        }
+      } else {
+        // Only trigger artifact generation if no artifacts from backend
+        sendToArtifact(data.reply, { previousSpec: ARTIFACT_BASE_SPEC }).catch(
+          (err) => console.error("[artifact] generation failed:", err),
+        );
+        setArtifactPanelMode("spec");
+      }
     } catch (err) {
       const assistantErrMsg: Message = {
         id: `error-${Date.now()}`,
@@ -406,6 +558,20 @@ export default function ChatInterface() {
     sendToArtifact(prompt, { previousSpec: currentSpec }).catch((err) =>
       console.error("[artifact] edit failed:", err),
     );
+  };
+
+  const handleArtifactToggle = (artifact: Artifact) => {
+    if (openArtifact === artifact) {
+      // Close if already open
+      setOpenArtifact(null);
+      setArtifactPanelMode("spec");
+    } else {
+      // Open the artifact
+      setOpenArtifact(artifact);
+      if (artifact.type === "pdf" || artifact.type === "html") {
+        setArtifactPanelMode(artifact.type as "pdf" | "html");
+      }
+    }
   };
 
   const isEmpty = messages.length === 0;
@@ -459,6 +625,8 @@ export default function ChatInterface() {
             onClear={clearArtifact}
             onTest={handleTestArtifact}
             onEditRequest={handleEditArtifact}
+            mode={artifactPanelMode || "spec"}
+            artifact={openArtifact}
           />
         </ResizablePanel>
 
@@ -518,7 +686,12 @@ export default function ChatInterface() {
                 ) : (
                   <div className="pt-4 space-y-0.5">
                     {messages.map((msg) => (
-                      <MessageBubble key={msg.id} message={msg} />
+                      <MessageBubble
+                        key={msg.id}
+                        message={msg}
+                        onArtifactToggle={handleArtifactToggle}
+                        openArtifact={openArtifact}
+                      />
                     ))}
                   </div>
                 )}

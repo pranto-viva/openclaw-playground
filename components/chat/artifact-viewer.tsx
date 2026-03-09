@@ -29,6 +29,13 @@ interface ArtifactMessage {
   timestamp: Date;
 }
 
+interface Artifact {
+  type: string;
+  filename: string;
+  path: string;
+  content?: string | null;
+}
+
 interface ArtifactViewerProps {
   spec: Spec | null;
   isStreaming?: boolean;
@@ -36,6 +43,8 @@ interface ArtifactViewerProps {
   onClear?: () => void;
   onTest?: () => void;
   onEditRequest?: (prompt: string, currentSpec: Spec) => void;
+  mode?: "spec" | "pdf" | "html";
+  artifact?: Artifact | null;
 }
 
 const SUPPORTED_COMPONENTS = new Set([
@@ -58,6 +67,97 @@ const SUPPORTED_COMPONENTS = new Set([
   "Chart",
 ]);
 
+// ─── PDF Viewer Content ───────────────────────────────────────────────────────
+
+function PDFViewerContent({ artifact }: { artifact: Artifact }) {
+  const pdfSrc = React.useMemo(() => {
+    if (!artifact.path) return null;
+    return `/api/local-file?path=${encodeURIComponent(artifact.path)}`;
+  }, [artifact.path]);
+
+  const embeddedPdfSrc = React.useMemo(() => {
+    if (!pdfSrc) return null;
+    // PDF Open Parameters (supported in many PDF.js/Firefox viewers)
+    return `${pdfSrc}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+  }, [pdfSrc]);
+
+  return (
+    <div className="flex-1 h-full w-full">
+      {embeddedPdfSrc ? (
+        <iframe
+          src={embeddedPdfSrc}
+          frameBorder="0"
+          className="w-full h-full"
+          title={artifact.filename || "PDF document"}
+        ></iframe>
+      ) : (
+        <div className="p-4">
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="size-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-amber-200">
+                  PDF path not available
+                </p>
+                <p className="text-xs text-amber-200/80">
+                  The backend response must include a valid PDF file path in
+                  <code className="bg-amber-500/20 px-1 rounded ml-1">
+                    path
+                  </code>
+                  .
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── HTML Viewer Content ──────────────────────────────────────────────────────
+
+function HTMLViewerContent({ artifact }: { artifact: Artifact }) {
+  return (
+    <ScrollArea className="flex-1 overflow-auto">
+      {/* HTML Render */}
+      {artifact.content ? (
+        <div className="h-full">
+          <iframe
+            srcDoc={artifact.content}
+            className="w-full h-full min-h-screen"
+            title={artifact.filename}
+            style={{
+              border: "none",
+              display: "block",
+            }}
+          />
+        </div>
+      ) : (
+        <div className="p-4">
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="size-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-amber-200">
+                  HTML content not available
+                </p>
+                <p className="text-xs text-amber-200/80">
+                  The backend needs to include the HTML content in the response.
+                  File path:{" "}
+                  <code className="bg-amber-500/20 px-1 rounded">
+                    {artifact.path}
+                  </code>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </ScrollArea>
+  );
+}
+
 export default function ArtifactViewer({
   spec,
   isStreaming = false,
@@ -65,6 +165,8 @@ export default function ArtifactViewer({
   onClear,
   onTest,
   onEditRequest,
+  mode = "spec",
+  artifact = null,
 }: ArtifactViewerProps) {
   const hasSpec = spec !== null && spec.root !== "";
   const [chatMessages, setChatMessages] = React.useState<ArtifactMessage[]>([]);
@@ -181,16 +283,24 @@ export default function ArtifactViewer({
               <h2 className="font-semibold text-foreground text-sm leading-tight">
                 {isStreaming
                   ? "Generating…"
-                  : hasSpec
-                    ? "Analysis Report"
-                    : "Artifact Viewer"}
+                  : mode === "pdf"
+                    ? artifact?.filename || "PDF Document"
+                    : mode === "html"
+                      ? artifact?.filename || "HTML View"
+                      : hasSpec
+                        ? "Analysis Report"
+                        : "Artifact Viewer"}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {isStreaming
                   ? "Transforming response into structured UI"
-                  : hasSpec
-                    ? "AI-generated structured view"
-                    : "Context & data from AI responses"}
+                  : mode === "pdf"
+                    ? "PDF document from backend"
+                    : mode === "html"
+                      ? "HTML content from backend"
+                      : hasSpec
+                        ? "AI-generated structured view"
+                        : "Context & data from AI responses"}
               </p>
             </div>
           </div>
@@ -227,6 +337,10 @@ export default function ArtifactViewer({
       {/* Content */}
       {error ? (
         <ErrorState error={error} />
+      ) : mode === "pdf" && artifact ? (
+        <PDFViewerContent artifact={artifact} />
+      ) : mode === "html" && artifact ? (
+        <HTMLViewerContent artifact={artifact} />
       ) : hasSpec ? (
         <>
           <ScrollArea className="flex-1 overflow-auto p-4">
